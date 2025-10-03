@@ -591,3 +591,26 @@ margin-left: 600px;
     margin-left: 300px;
     text-align: center;
 }
+.task-header {
+  background: rgba(0,0,0,0.03);
+  font-weight: bold;
+  border-bottom: 1px solid var(--border-color);
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr 0.5fr;
+  align-items: center;
+  padding: 0.5rem 0.5rem;
+}
+
+.task-header .sortable {
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.2s;
+}
+.task-header .sortable:hover {
+  color: var(--primary-color);
+}
+
+/* Animate task list items on sort */
+.task-item {
+  transition: background 0.2s, transform 0.3s;
+}

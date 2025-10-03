@@ -5,6 +5,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const taskList = document.getElementById("task-list");
   const clearAllBtn = document.getElementById("clear-all-btn");
   const filterBtns = document.querySelectorAll(".filter-btn");
+  const sortTasksBtn = document.getElementById("sort-tasks-btn");
 
   // --- Weather Widget Setup ---
   const cityInput = document.getElementById("city-input");
@@ -18,12 +19,17 @@ document.addEventListener("DOMContentLoaded", () => {
   let currentFilter = "all";
   let weatherSearchTimeout = null;
 
-  
-  
-  const weatherApiKey = "4b1ee5452a2e3f68205153f28bf93927"; 
+  // --- Sorting State ---
+  let sortState = JSON.parse(localStorage.getItem("sortState")) || {
+    key: "title",
+    direction: "asc"
+  };
+
+  // --- Weather API Key ---
+  const weatherApiKey = "4b1ee5452a2e3f68205153f28bf93927";
   const DEBOUNCE_DELAY = 500;
   const WEATHER_TIMEOUT_MS = 8000;
-  const MAX_RETRIES = 100;
+  const MAX_RETRIES = 3;
 
   // --- Utility Functions ---
   function debounce(func, delay) {
@@ -37,73 +43,21 @@ document.addEventListener("DOMContentLoaded", () => {
     localStorage.setItem("tasks", JSON.stringify(tasks));
   }
 
-  function createTaskElement(task, index) {
-    const li = document.createElement("li");
-    li.className = "task-item";
-    li.dataset.index = index;
-
-    const checkbox = document.createElement("input");
-    checkbox.type = "checkbox";
-    checkbox.checked = task.completed;
-    checkbox.dataset.action = "toggle";
-
-    const taskText = document.createElement("span");
-    taskText.textContent = task.text;
-    if (task.completed) taskText.classList.add("completed");
-    taskText.dataset.action = "edit";
-
-    const deleteBtn = document.createElement("button");
-    deleteBtn.className = "delete-btn";
-    deleteBtn.textContent = "🗑️";
-    deleteBtn.dataset.action = "delete";
-
-    li.appendChild(checkbox);
-    li.appendChild(taskText);
-    li.appendChild(deleteBtn);
-    return li;
+  function saveSortState() {
+    localStorage.setItem("sortState", JSON.stringify(sortState));
   }
 
-  function renderTasks() {
-    let incompleteTasks = [];
-    let completedTasks = [];
-    tasks.forEach((task, index) => {
-      if (task.completed) completedTasks.push(task);
-      else incompleteTasks.push(task);
-    });
-    tasks = [...incompleteTasks, ...completedTasks];
-
-    taskList.innerHTML = "";
-    // Check if filter buttons exist before updating their text
-    const filterActiveBtn = document.querySelector("#filter-active");
-    const filterCompletedBtn = document.querySelector("#filter-completed");
-    if (filterActiveBtn) filterActiveBtn.innerHTML = `Active [${incompleteTasks.length}]`;
-    if (filterCompletedBtn) filterCompletedBtn.innerHTML = `Completed [${completedTasks.length}]`;
-
-    const filteredTasks = tasks.filter((task) => {
-      if (currentFilter === "active") return !task.completed;
-      if (currentFilter === "completed") return task.completed;
-      return true;
-    });
-
-    if (filteredTasks.length === 0) {
-      const empty = document.createElement("li");
-      empty.className = "task-empty-state";
-      empty.setAttribute("aria-live", "polite");
-      empty.textContent = "No tasks here. Add a new one or change your filter!";
-      taskList.appendChild(empty);
-      return;
-    }
-
-    filteredTasks.forEach((task) => {
-      const originalIndex = tasks.findIndex((t) => t === task);
-      taskList.appendChild(createTaskElement(task, originalIndex));
-    });
-  }
-
+  // --- Task Data Model ---
+  // Each task: { text, completed, created, priority }
   function addTask() {
     const text = taskInput.value.trim();
     if (!text) return;
-    const newTask = { text, completed: false };
+    const newTask = {
+      text,
+      completed: false,
+      created: Date.now(),
+      priority: 2 // default priority: 1=High, 2=Medium, 3=Low
+    };
     tasks.push(newTask);
     saveTasks();
     taskInput.value = "";
@@ -153,6 +107,171 @@ document.addEventListener("DOMContentLoaded", () => {
         input.value = originalText;
         input.blur();
       }
+    });
+  }
+
+  // --- Sorting ---
+  function sortTasks(tasksArr) {
+    let sorted = [...tasksArr];
+    switch (sortState.key) {
+      case "title":
+        sorted.sort((a, b) =>
+          sortState.direction === "asc"
+            ? a.text.localeCompare(b.text)
+            : b.text.localeCompare(a.text)
+        );
+        break;
+      case "date":
+        sorted.sort((a, b) =>
+          sortState.direction === "asc"
+            ? a.created - b.created
+            : b.created - a.created
+        );
+        break;
+      case "priority":
+        sorted.sort((a, b) =>
+          sortState.direction === "asc"
+            ? a.priority - b.priority
+            : b.priority - a.priority
+        );
+        break;
+      case "status":
+        sorted.sort((a, b) =>
+          sortState.direction === "asc"
+            ? a.completed - b.completed
+            : b.completed - a.completed
+        );
+        break;
+      default:
+        break;
+    }
+    return sorted;
+  }
+
+  function renderTasks() {
+    let incompleteTasks = [];
+    let completedTasks = [];
+    tasks.forEach((task, index) => {
+      if (task.completed) completedTasks.push(task);
+      else incompleteTasks.push(task);
+    });
+
+    // Filtering
+    let filteredTasks = tasks.filter((task) => {
+      if (currentFilter === "active") return !task.completed;
+      if (currentFilter === "completed") return task.completed;
+      return true;
+    });
+
+    // Sorting
+    filteredTasks = sortTasks(filteredTasks);
+
+    taskList.innerHTML = "";
+    const filterActiveBtn = document.querySelector("#filter-active");
+    const filterCompletedBtn = document.querySelector("#filter-completed");
+    if (filterActiveBtn) filterActiveBtn.innerHTML = `Active [${incompleteTasks.length}]`;
+    if (filterCompletedBtn) filterCompletedBtn.innerHTML = `Completed [${completedTasks.length}]`;
+
+    if (filteredTasks.length === 0) {
+      const empty = document.createElement("li");
+      empty.className = "task-empty-state";
+      empty.setAttribute("aria-live", "polite");
+      empty.textContent = "No tasks here. Add a new one or change your filter!";
+      taskList.appendChild(empty);
+      return;
+    }
+
+    // Table header for sorting
+    const header = document.createElement("li");
+    header.className = "task-header";
+    header.innerHTML = `
+      <span class="sortable" data-sort="title">Title ${sortState.key === "title" ? (sortState.direction === "asc" ? "▲" : "▼") : ""}</span>
+      <span class="sortable" data-sort="date">Date ${sortState.key === "date" ? (sortState.direction === "asc" ? "▲" : "▼") : ""}</span>
+      <span class="sortable" data-sort="priority">Priority ${sortState.key === "priority" ? (sortState.direction === "asc" ? "▲" : "▼") : ""}</span>
+      <span class="sortable" data-sort="status">Status ${sortState.key === "status" ? (sortState.direction === "asc" ? "▲" : "▼") : ""}</span>
+      <span></span>
+    `;
+    header.style.fontWeight = "bold";
+    header.style.background = "rgba(0,0,0,0.03)";
+    header.style.borderBottom = "1px solid var(--border-color)";
+    header.style.display = "grid";
+    header.style.gridTemplateColumns = "2fr 1fr 1fr 1fr 0.5fr";
+    header.style.alignItems = "center";
+    header.style.padding = "0.5rem 0.5rem";
+    taskList.appendChild(header);
+
+    filteredTasks.forEach((task, idx) => {
+      const originalIndex = tasks.findIndex((t) => t === task);
+      const li = document.createElement("li");
+      li.className = "task-item";
+      li.dataset.index = originalIndex;
+      li.style.display = "grid";
+      li.style.gridTemplateColumns = "2fr 1fr 1fr 1fr 0.5fr";
+      li.style.alignItems = "center";
+      li.style.padding = "0.5rem 0.5rem";
+      li.style.transition = "background 0.2s";
+
+      // Title
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.checked = task.completed;
+      checkbox.dataset.action = "toggle";
+      checkbox.style.marginRight = "0.5rem";
+
+      const taskText = document.createElement("span");
+      taskText.textContent = task.text;
+      if (task.completed) taskText.classList.add("completed");
+      taskText.dataset.action = "edit";
+
+      const titleCell = document.createElement("span");
+      titleCell.appendChild(checkbox);
+      titleCell.appendChild(taskText);
+
+      // Date
+      const dateCell = document.createElement("span");
+      const dateObj = new Date(task.created);
+      dateCell.textContent = dateObj.toLocaleDateString() + " " + dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+      // Priority
+      const priorityCell = document.createElement("span");
+      let priorityText = "Medium";
+      if (task.priority === 1) priorityText = "High";
+      if (task.priority === 3) priorityText = "Low";
+      priorityCell.textContent = priorityText;
+
+      // Status
+      const statusCell = document.createElement("span");
+      statusCell.textContent = task.completed ? "Done" : "Active";
+      statusCell.style.color = task.completed ? "var(--completed-color)" : "var(--primary-color)";
+
+      // Delete
+      const deleteBtn = document.createElement("button");
+      deleteBtn.className = "delete-btn";
+      deleteBtn.textContent = "🗑️";
+      deleteBtn.dataset.action = "delete";
+
+      li.appendChild(titleCell);
+      li.appendChild(dateCell);
+      li.appendChild(priorityCell);
+      li.appendChild(statusCell);
+      li.appendChild(deleteBtn);
+      taskList.appendChild(li);
+    });
+
+    // Add sorting event listeners
+    taskList.querySelectorAll(".sortable").forEach((el) => {
+      el.style.cursor = "pointer";
+      el.addEventListener("click", () => {
+        const key = el.dataset.sort;
+        if (sortState.key === key) {
+          sortState.direction = sortState.direction === "asc" ? "desc" : "asc";
+        } else {
+          sortState.key = key;
+          sortState.direction = "asc";
+        }
+        saveSortState();
+        renderTasks();
+      });
     });
   }
 
@@ -320,6 +439,21 @@ document.addEventListener("DOMContentLoaded", () => {
   if (themeToggle) {
     themeToggle.addEventListener("click", () => {
       document.body.classList.toggle("dark-theme");
+    });
+  }
+
+  // --- Sort Button ---
+  if (sortTasksBtn) {
+    sortTasksBtn.addEventListener("click", () => {
+      // Toggle between title asc/desc for demo
+      if (sortState.key === "title") {
+        sortState.direction = sortState.direction === "asc" ? "desc" : "asc";
+      } else {
+        sortState.key = "title";
+        sortState.direction = "asc";
+      }
+      saveSortState();
+      renderTasks();
     });
   }
 
