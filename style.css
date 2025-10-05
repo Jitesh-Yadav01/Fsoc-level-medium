@@ -953,59 +953,6 @@ footer .footer-nav a:hover {
   100% { transform: translateX(100%); }
 }
 
-body {
-  font-family: Arial, sans-serif;
-  padding: 20px;
-}
-
-button {
-  padding: 10px 15px;
-  margin: 5px;
-  cursor: pointer;
-}
-
-.modal {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  display: none;
-  justify-content: center;
-  align-items: center;
-  background: rgba(0,0,0,0.5);
-  backdrop-filter: blur(2px);
-  z-index: 1000;
-}
-
-.modal.show {
-  display: flex;
-}
-
-.modal-content {
-  background: #fff;
-  padding: 20px;
-  border-radius: 8px;
-  min-width: 300px;
-  max-width: 500px;
-  transform: translateY(-50px);
-  opacity: 0;
-  transition: all 0.3s ease;
-}
-
-.modal.show .modal-content {
-  transform: translateY(0);
-  opacity: 1;
-}
-
-.modal-buttons {
-  margin-top: 20px;
-  text-align: right;
-}
-
-.modal-btn {
-  padding: 8px 12px;
-  margin-left: 10px;
 /* Drag & Drop styles */
 .drag-clone {
     box-shadow: 0 12px 30px rgba(0,0,0,0.18);
