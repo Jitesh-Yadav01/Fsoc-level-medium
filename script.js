@@ -1,4 +1,5 @@
 document.addEventListener("DOMContentLoaded", () => {
+  #Fix
   // --- Task Manager Setup ---
   const taskInput = document.getElementById("task-input");
   const dueDateInput = document.getElementById("due-date-input");
@@ -1525,4 +1526,5 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   init();
+
 });
