@@ -298,6 +298,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function clearAllTasks() {
+    if (!confirm("Are you sure you want to delete ALL tasks? This cannot be undone.")) return;
     tasks = [];
     tagRegistry = {};
     saveTags();
@@ -1112,7 +1113,7 @@ document.addEventListener("DOMContentLoaded", () => {
           return;
         }
         if (response.status === 404) {
-          showWeatherError(`We couldn't find "${city}". Please check the spelling or try another city.`);
+          showWeatherError(`Sorry, we couldn't find "${city}". Please check the spelling or try another city.`);
           return;
         }
         throw new Error(`Server error (${response.status})`);
