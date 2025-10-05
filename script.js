@@ -1,5 +1,4 @@
 document.addEventListener("DOMContentLoaded", () => {
-  #Fix
   // --- Task Manager Setup ---
   const taskInput = document.getElementById("task-input");
   const dueDateInput = document.getElementById("due-date-input");
@@ -1527,5 +1526,156 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   init();
-
 });
+
+// --- Command Pattern Core ---
+class Command {
+  execute() {}
+  undo() {}
+}
+
+class CommandManager {
+  constructor(limit = 20) {
+    this.undoStack = [];
+    this.redoStack = [];
+    this.limit = limit;
+  }
+
+  executeCommand(command) {
+    command.execute();
+    this.undoStack.push(command);
+    if (this.undoStack.length > this.limit) this.undoStack.shift();
+    this.redoStack = [];
+    updateButtons();
+  }
+
+  undo() {
+    const command = this.undoStack.pop();
+    if (command) {
+      command.undo();
+      this.redoStack.push(command);
+      updateButtons();
+      showToast("Undo performed");
+    }
+  }
+
+  redo() {
+    const command = this.redoStack.pop();
+    if (command) {
+      command.execute();
+      this.undoStack.push(command);
+      updateButtons();
+      showToast("Redo performed");
+    }
+  }
+
+  clearHistory() {
+    this.undoStack = [];
+    this.redoStack = [];
+    updateButtons();
+    showToast("Undo history cleared");
+  }
+}
+
+// --- Commands for actions ---
+class AddTaskCommand extends Command {
+  constructor(taskText) {
+    super();
+    this.taskText = taskText;
+    this.taskElement = null;
+  }
+
+  execute() {
+    this.taskElement = createTaskElement(this.taskText);
+    taskList.appendChild(this.taskElement);
+  }
+
+  undo() {
+    this.taskElement.remove();
+  }
+}
+
+class DeleteTaskCommand extends Command {
+  constructor(taskElement) {
+    super();
+    this.taskElement = taskElement;
+    this.taskText = taskElement.textContent.replace("Delete", "").trim();
+    this.index = [...taskList.children].indexOf(taskElement);
+  }
+
+  execute() {
+    this.taskElement.remove();
+  }
+
+  undo() {
+    const tasks = [...taskList.children];
+    if (this.index >= tasks.length) {
+      taskList.appendChild(this.taskElement);
+    } else {
+      taskList.insertBefore(this.taskElement, tasks[this.index]);
+    }
+  }
+}
+
+// --- Setup ---
+const taskInput = document.getElementById("taskInput");
+const addTaskBtn = document.getElementById("addTaskBtn");
+const taskList = document.getElementById("taskList");
+const undoBtn = document.getElementById("undoBtn");
+const redoBtn = document.getElementById("redoBtn");
+const clearHistoryBtn = document.getElementById("clearHistoryBtn");
+const toast = document.getElementById("toast");
+
+const manager = new CommandManager();
+
+// --- Event Listeners ---
+addTaskBtn.addEventListener("click", () => {
+  const text = taskInput.value.trim();
+  if (text) {
+    manager.executeCommand(new AddTaskCommand(text));
+    taskInput.value = "";
+    showToast("Task added");
+  }
+});
+
+undoBtn.addEventListener("click", () => manager.undo());
+redoBtn.addEventListener("click", () => manager.redo());
+clearHistoryBtn.addEventListener("click", () => manager.clearHistory());
+
+// --- Keyboard Shortcuts ---
+document.addEventListener("keydown", (e) => {
+  if (e.ctrlKey && e.key === "z") {
+    e.preventDefault();
+    manager.undo();
+  } else if ((e.ctrlKey && e.key === "y") || (e.ctrlKey && e.shiftKey && e.key === "Z")) {
+    e.preventDefault();
+    manager.redo();
+  }
+});
+
+// --- Helper Functions ---
+function createTaskElement(text) {
+  const li = document.createElement("li");
+  li.textContent = text;
+
+  const delBtn = document.createElement("button");
+  delBtn.textContent = "Delete";
+  delBtn.addEventListener("click", () => {
+    manager.executeCommand(new DeleteTaskCommand(li));
+    showToast("Task deleted");
+  });
+
+  li.appendChild(delBtn);
+  return li;
+}
+
+function showToast(message) {
+  toast.textContent = message;
+  toast.classList.add("show");
+  setTimeout(() => toast.classList.remove("show"), 2000);
+}
+
+function updateButtons() {
+  undoBtn.disabled = manager.undoStack.length === 0;
+  redoBtn.disabled = manager.redoStack.length === 0;
+}
